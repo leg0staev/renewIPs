@@ -35,13 +35,13 @@ echo "$output" | awk '{print $2}' | while read -r interface; do
     # Чтение текущего IP-адреса из файла конфигурации
     config_file="/etc/systemd/network/${interface}.network"
     if [[ ! -f "$config_file" ]]; then
-        echo "Error: File $config_file does not exist."
+        echo "Error: Файл $config_file не существует."
         continue
     fi
 
     current_ip=$(awk -F'=' '/^Address=/ {print $2}' "$config_file")
     if [[ -z "$current_ip" ]]; then
-        echo "Error: Could not find current IP address in $config_file."
+        echo "Error: Не могй найти текущий IP адрес в $config_file."
         continue
     fi
 
@@ -54,7 +54,7 @@ echo "$output" | awk '{print $2}' | while read -r interface; do
     elif [[ "$current_ip" == "$ip2" ]]; then
         new_ip="$ip1"
     else
-        echo "Error: Current IP address ($current_ip) does not match any of the IPs for $interface."
+        echo "Error: Текущий IP адрес ($current_ip) не совпадает ни с одним IP для $interface."
         continue
     fi
 
@@ -71,11 +71,16 @@ echo "$output" | awk '{print $2}' | while read -r interface; do
     # Создаём временный файл для редактирования
     temp_file=$(mktemp)
 
+    # Сохраняем права доступа оригинального файла
+    original_permissions=$(stat -c "%a" "$config_file")  # Получаем права доступа в формате (например, 644)
+    original_owner=$(stat -c "%U:%G" "$config_file")     # Получаем владельца и группу (например, root:root)
+
     # Обновляем файл конфигурации
     awk -v new_ip="$new_ip" -v gateway="$gateway" -v table_number="$table_number" '
     /^Address=/ { $0 = "Address=" new_ip }
     /^Gateway=/ { $0 = "Gateway=" gateway }
     /^Table=/ { $0 = "Table=" table_number }
+    /^From=/ { $0 = "From=" new_ip }
     { print }
     ' "$config_file" > "$temp_file"
 
